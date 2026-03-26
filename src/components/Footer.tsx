@@ -1,10 +1,39 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useContent } from "../context/ContentContext";
 import { Globe, Facebook, Instagram, Twitter, Linkedin, Mail, Phone, MapPin } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Footer() {
   const { data } = useContent();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
   if (!data) return null;
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        toast.success("Subscribed successfully!");
+        setEmail("");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Subscription failed");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <footer className="bg-gray-900 text-gray-300 pt-16 pb-8">
@@ -62,14 +91,21 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-6">Newsletter</h3>
             <p className="text-sm mb-4">Subscribe for travel inspiration and exclusive deals.</p>
-            <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-3" onSubmit={handleSubscribe}>
               <input
                 type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
                 className="w-full bg-gray-800 border-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
               />
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors text-sm">
-                Subscribe
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 rounded-lg transition-colors text-sm"
+              >
+                {loading ? "Subscribing..." : "Subscribe"}
               </button>
             </form>
           </div>
@@ -80,7 +116,7 @@ export default function Footer() {
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
+            <Link to="/admin" className="hover:text-white transition-colors">Management</Link>
           </div>
         </div>
       </div>

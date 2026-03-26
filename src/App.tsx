@@ -6,10 +6,17 @@ import Home from "./pages/Home";
 import About from "./pages/About";
 import Destinations from "./pages/Destinations";
 import Services from "./pages/Services";
+import ServiceDetail from "./pages/ServiceDetail";
 import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 import Contact from "./pages/Contact";
-import AdminLogin from "./pages/AdminLogin";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Booking from "./pages/Booking";
+import MyBookings from "./pages/MyBookings";
+import BookingConfirmation from "./pages/BookingConfirmation";
 import AdminDashboard from "./pages/AdminDashboard";
+import DestinationDetail from "./pages/DestinationDetail";
 import { Toaster } from "sonner";
 
 export default function App() {
@@ -23,15 +30,22 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/destinations" element={<Destinations />} />
+              <Route path="/destinations/:id" element={<DestinationDetail />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetail />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogPost />} />
               <Route path="/contact" element={<Contact />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/book/:id" element={<Booking />} />
+              <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
+              <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>
           <Footer />
-          <Toaster position="top-right" />
+          <Toaster position="top-right" richColors />
         </div>
       </Router>
     </ContentProvider>

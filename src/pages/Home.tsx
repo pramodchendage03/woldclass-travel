@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useContent } from "../context/ContentContext";
-import { ArrowRight, Star, Shield, Clock } from "lucide-react";
+import { ArrowRight, Star, Shield, Clock, Globe, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function Home() {
@@ -10,113 +10,156 @@ export default function Home() {
   const { home } = data.content;
 
   return (
-    <div className="space-y-24 pb-24">
+    <div className="space-y-32 pb-32 bg-paper">
       {/* Hero Section */}
-      <section className="relative h-[90vh] flex items-center overflow-hidden">
+      <section className="relative h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
             src={home.heroImage}
             alt="Hero"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover scale-105"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/40 to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="max-w-3xl"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="max-w-4xl"
           >
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
+            <motion.span 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="text-gold font-medium tracking-[0.4em] uppercase text-sm mb-8 block"
+            >
+              The Art of Exploration
+            </motion.span>
+            <h1 className="text-6xl md:text-8xl font-serif tracking-tight mb-8 leading-[1.1]">
               {home.heroTitle}
             </h1>
-            <p className="text-xl md:text-2xl text-gray-100 mb-10 max-w-2xl font-light">
+            <p className="text-xl md:text-2xl text-white/70 mb-12 max-w-2xl font-light leading-relaxed">
               {home.heroSubtitle}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-6">
               <Link
                 to="/destinations"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold flex items-center justify-center transition-all transform hover:scale-105"
+                className="gold-gradient text-white px-10 py-5 rounded-xl font-bold uppercase tracking-widest text-xs luxury-shadow hover:scale-105 transition-all flex items-center justify-center"
               >
-                Explore Destinations <ArrowRight className="ml-2 h-5 w-5" />
+                Discover Destinations <ArrowRight className="ml-3 h-4 w-4" />
               </Link>
               <Link
                 to="/contact"
-                className="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/30 px-8 py-4 rounded-full font-semibold flex items-center justify-center transition-all"
+                className="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/20 px-10 py-5 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center transition-all"
               >
-                Book a Consultation
+                Bespoke Consultation
               </Link>
             </div>
           </motion.div>
+        </div>
+
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 hidden md:block">
+          <motion.div 
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="w-px h-20 bg-gradient-to-b from-white/0 via-gold to-white/0"
+          />
         </div>
       </section>
 
       {/* Featured Destinations */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-end mb-12">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4 italic serif">Featured Destinations</h2>
-            <p className="text-gray-600 max-w-xl">Handpicked locations for your next unforgettable journey.</p>
+        <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+          <div className="max-w-2xl">
+            <span className="text-gold font-medium tracking-[0.3em] uppercase text-xs mb-4 block">Curated Collections</span>
+            <h2 className="text-5xl font-serif text-ink mb-6 leading-tight">Featured Destinations</h2>
+            <p className="text-ink/50 font-light text-lg leading-relaxed">Handpicked locations for your next unforgettable journey, curated by our global network of travel experts.</p>
           </div>
-          <Link to="/destinations" className="text-blue-600 font-semibold flex items-center hover:underline">
-            View All <ArrowRight className="ml-1 h-4 w-4" />
+          <Link to="/destinations" className="group flex items-center text-gold font-bold uppercase tracking-widest text-xs">
+            Explore All <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-2 transition-transform" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {data.destinations.slice(0, 3).map((dest, idx) => (
             <motion.div
               key={dest.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
+              transition={{ delay: idx * 0.15 }}
               viewport={{ once: true }}
-              className="group cursor-pointer"
+              className="group"
             >
-              <div className="relative h-96 rounded-2xl overflow-hidden mb-4">
-                <img
-                  src={dest.image}
-                  alt={dest.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-blue-600 uppercase tracking-widest">
-                  {dest.type}
+              <Link to={`/book/${dest.id}`} className="block">
+                <div className="relative aspect-[3/4] rounded-[2.5rem] overflow-hidden mb-8 luxury-shadow">
+                  <img
+                    src={dest.image}
+                    alt={dest.name}
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-bold text-gold uppercase tracking-[0.2em] luxury-border">
+                    {dest.type}
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8">
+                    <p className="text-white font-serif text-2xl mb-2">{dest.name}</p>
+                    <p className="text-white/60 text-xs uppercase tracking-widest">View Details</p>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">{dest.name}</h3>
-              <p className="text-gray-500 text-sm mb-2">{dest.description}</p>
-              <p className="text-blue-600 font-bold">From ${dest.price}</p>
+                <div className="px-2">
+                  <div className="flex items-center text-gold/60 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">
+                    <MapPin className="w-3 h-3 mr-2" /> {dest.type} Collection
+                  </div>
+                  <h3 className="text-2xl font-serif text-ink mb-3 group-hover:text-gold transition-colors">{dest.name}</h3>
+                  <div className="flex justify-between items-center border-t border-gold/10 pt-4">
+                    <p className="text-gold font-bold tracking-widest text-sm uppercase">From ${dest.price}</p>
+                    <div className="w-8 h-8 rounded-full border border-gold/20 flex items-center justify-center group-hover:bg-gold group-hover:text-white transition-all">
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Why Choose Us */}
-      <section className="bg-gray-50 py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why WorldClass Travel?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">We redefine luxury travel through personalized service and exclusive access.</p>
+      <section className="bg-ink py-40 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full opacity-5">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white rounded-full" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-white rounded-full" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-24">
+            <span className="text-gold font-medium tracking-[0.4em] uppercase text-xs mb-6 block">The WorldClass Standard</span>
+            <h2 className="text-5xl font-serif text-white mb-8">Why Choose Excellence?</h2>
+            <p className="text-white/40 max-w-2xl mx-auto font-light text-lg leading-relaxed">We redefine luxury travel through personalized service, absolute discretion, and exclusive global access.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-20">
             {[
-              { icon: Star, title: "Premium Selection", desc: "Only the finest hotels and experiences make it to our list." },
-              { icon: Shield, title: "Secure Booking", desc: "Your safety and security are our top priorities throughout your journey." },
-              { icon: Clock, title: "24/7 Support", desc: "Our global team is always available to assist you, anywhere in the world." }
+              { icon: Star, title: "Premium Selection", desc: "Only the finest hotels and experiences make it to our list, vetted by our experts." },
+              { icon: Shield, title: "Secure Booking", desc: "Your safety and security are our top priorities throughout your entire journey." },
+              { icon: Clock, title: "24/7 Concierge", desc: "Our global team is always available to assist you, anywhere in the world, at any time." }
             ].map((item, idx) => (
-              <div key={idx} className="text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
-                  <item.icon className="h-8 w-8" />
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.2 }}
+                viewport={{ once: true }}
+                className="text-center space-y-8 group"
+              >
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-white/5 text-gold mb-4 luxury-border group-hover:gold-gradient group-hover:text-white transition-all duration-500">
+                  <item.icon className="h-10 w-10" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">{item.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{item.desc}</p>
-              </div>
+                <h3 className="text-2xl font-serif text-white">{item.title}</h3>
+                <p className="text-white/40 leading-relaxed font-light">{item.desc}</p>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -124,22 +167,33 @@ export default function Home() {
 
       {/* Testimonials */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-blue-600 rounded-3xl p-12 md:p-20 text-white relative overflow-hidden">
-          <div className="relative z-10 max-w-3xl">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8 italic serif">"The most seamless travel experience I've ever had. WorldClass truly lives up to its name."</h2>
-            <div className="flex items-center space-x-4">
-              <img
-                src="https://i.pravatar.cc/150?u=sarah"
-                alt="Sarah"
-                className="w-12 h-12 rounded-full border-2 border-white/50"
-              />
+        <div className="bg-paper border border-gold/20 rounded-[4rem] p-16 md:p-32 text-ink relative overflow-hidden luxury-shadow">
+          <div className="relative z-10 max-w-4xl mx-auto text-center">
+            <div className="flex justify-center mb-12">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} className="w-6 h-6 text-gold fill-gold mx-1" />
+              ))}
+            </div>
+            <h2 className="text-4xl md:text-5xl font-serif mb-12 leading-tight italic">
+              "The most seamless travel experience I've ever had. WorldClass truly lives up to its name, providing access to places I never thought possible."
+            </h2>
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 rounded-full border-2 border-gold p-1 mb-6">
+                <img
+                  src="https://i.pravatar.cc/150?u=sarah"
+                  alt="Sarah"
+                  className="w-full h-full rounded-full object-cover"
+                />
+              </div>
               <div>
-                <p className="font-bold">Sarah Jenkins</p>
-                <p className="text-blue-200 text-sm italic">Luxury Traveler</p>
+                <p className="font-bold uppercase tracking-[0.2em] text-sm mb-1">Sarah Jenkins</p>
+                <p className="text-gold text-xs font-medium italic">Private Wealth Client</p>
               </div>
             </div>
           </div>
-          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-500 rounded-full blur-3xl opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none">
+            <Globe className="w-full h-full scale-150" />
+          </div>
         </div>
       </section>
     </div>

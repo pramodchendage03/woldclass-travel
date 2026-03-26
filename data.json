@@ -1,0 +1,242 @@
+{
+  "settings": {
+    "siteName": "WorldClass Travel",
+    "primaryColor": "#1e40af",
+    "secondaryColor": "#fbbf24",
+    "fontFamily": "Inter",
+    "logo": "https://picsum.photos/seed/travel-logo/200/80",
+    "seo": {
+      "title": "WorldClass Travel - Explore the World",
+      "description": "Premium international travel agency platform."
+    }
+  },
+  "content": {
+    "home": {
+      "heroTitle": "Discover Your Next Adventure",
+      "heroSubtitle": "Experience the world like never before with our curated luxury travel packages.",
+      "heroImage": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1920&q=80"
+    },
+    "about": {
+      "title": "Our Story",
+      "content": "WorldClass Travel was founded with a simple mission: to make global exploration accessible and luxurious for everyone.",
+      "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80"
+    }
+  },
+  "destinations": [
+    {
+      "id": "1",
+      "name": "Santorini, Greece",
+      "description": "Beautiful white buildings and blue domes overlooking the Aegean Sea.",
+      "price": 1200,
+      "image": "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=800&q=80",
+      "type": "Beach"
+    },
+    {
+      "id": "2",
+      "name": "Kyoto, Japan",
+      "description": "Historic temples, stunning gardens, and traditional tea houses.",
+      "price": 1500,
+      "image": "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
+      "type": "Cultural"
+    },
+    {
+      "id": "3",
+      "name": "Swiss Alps, Switzerland",
+      "description": "Majestic mountains and luxury ski resorts for the ultimate adventure.",
+      "price": 2000,
+      "image": "https://images.unsplash.com/photo-1531310197839-ccf54634509e?auto=format&fit=crop&w=800&q=80",
+      "type": "Adventure"
+    },
+    {
+      "id": "4",
+      "name": "Bali, Indonesia",
+      "description": "Tropical paradise with lush jungles and pristine beaches.",
+      "price": 900,
+      "image": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80",
+      "type": "Beach"
+    },
+    {
+      "id": "5",
+      "name": "Paris, France",
+      "description": "The city of lights, art, and world-class cuisine.",
+      "price": 1800,
+      "image": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+      "type": "City"
+    },
+    {
+      "id": "6",
+      "name": "New York City, USA",
+      "description": "The city that never sleeps, filled with iconic landmarks.",
+      "price": 2200,
+      "image": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80",
+      "type": "City"
+    },
+    {
+      "id": "7",
+      "name": "Cape Town, South Africa",
+      "description": "Stunning coastal views and the iconic Table Mountain.",
+      "price": 1400,
+      "image": "https://images.unsplash.com/photo-1580619305218-8423a7f29b83?auto=format&fit=crop&w=800&q=80",
+      "type": "Nature"
+    },
+    {
+      "id": "8",
+      "name": "Rome, Italy",
+      "description": "The eternal city, rich in history and ancient architecture.",
+      "price": 1600,
+      "image": "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80",
+      "type": "Cultural"
+    },
+    {
+      "id": "9",
+      "name": "Dubai, UAE",
+      "description": "Modern luxury, desert adventures, and futuristic architecture.",
+      "price": 2500,
+      "image": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=800&q=80",
+      "type": "Luxury"
+    },
+    {
+      "id": "10",
+      "name": "Maasai Mara, Kenya",
+      "description": "Unforgettable wildlife safaris in the heart of Africa.",
+      "price": 2800,
+      "image": "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80",
+      "type": "Adventure"
+    }
+  ],
+  "blogPosts": [
+    {
+      "id": "1",
+      "title": "Top 10 Travel Tips for 2026",
+      "content": "Traveling in 2026 is all about sustainability and local experiences. Make sure to pack light and respect local customs.",
+      "date": "2026-03-20",
+      "author": "Travel Expert",
+      "image": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
+  "services": [
+    {
+      "id": "1",
+      "title": "Travel Planning",
+      "description": "Customized itineraries tailored to your unique preferences and budget.",
+      "icon": "Map",
+      "category": "Planning"
+    },
+    {
+      "id": "2",
+      "title": "Visa Assistance",
+      "description": "Hassle-free visa processing and documentation for all global destinations.",
+      "icon": "FileText",
+      "category": "Documentation"
+    },
+    {
+      "id": "3",
+      "title": "Hotel Booking",
+      "description": "Exclusive deals at the world's finest luxury hotels and resorts.",
+      "icon": "Hotel",
+      "category": "Accommodation"
+    },
+    {
+      "id": "4",
+      "title": "Flight Reservation",
+      "description": "Best rates on international and domestic flights with premium support.",
+      "icon": "Plane",
+      "category": "Transport"
+    },
+    {
+      "id": "5",
+      "title": "Car Rental",
+      "description": "Luxury and economy car rentals available at all major airports.",
+      "icon": "Car",
+      "category": "Transport"
+    },
+    {
+      "id": "6",
+      "title": "Cruise Booking",
+      "description": "Unforgettable ocean and river cruises across the globe.",
+      "icon": "Ship",
+      "category": "Adventure"
+    },
+    {
+      "id": "7",
+      "title": "Safari Tours",
+      "description": "Expert-led wildlife safaris in the world's most iconic parks.",
+      "icon": "Compass",
+      "category": "Adventure"
+    },
+    {
+      "id": "8",
+      "title": "Travel Insurance",
+      "description": "Comprehensive coverage for peace of mind during your journeys.",
+      "icon": "Shield",
+      "category": "Documentation"
+    },
+    {
+      "id": "9",
+      "title": "Corporate Travel",
+      "description": "Efficient and professional travel solutions for businesses.",
+      "icon": "Briefcase",
+      "category": "Business"
+    },
+    {
+      "id": "10",
+      "title": "Villa Rentals",
+      "description": "Private and exclusive villa stays for groups and families.",
+      "icon": "Home",
+      "category": "Accommodation"
+    },
+    {
+      "id": "11",
+      "title": "Guided City Tours",
+      "description": "Immersive cultural experiences led by local experts.",
+      "icon": "Users",
+      "category": "Cultural"
+    },
+    {
+      "id": "12",
+      "title": "Culinary Experiences",
+      "description": "Taste the world with our curated food and wine tours.",
+      "icon": "Coffee",
+      "category": "Cultural"
+    },
+    {
+      "id": "13",
+      "title": "Honeymoon Packages",
+      "description": "Romantic and personalized trips for your special celebration.",
+      "icon": "Heart",
+      "category": "Special"
+    }
+  ],
+  "users": [
+    {
+      "id": "admin",
+      "email": "admin@worldclass.travel",
+      "password": "$2b$10$em7CLdj7hGJK9kSdwSZvmOtFyLl4fxq9EzpOoWreNohL7I6LJCUX.",
+      "role": "admin",
+      "name": "Admin User"
+    },
+    {
+      "id": "1774499044771",
+      "email": "chendagepramod@gmail.com",
+      "password": "$2b$10$Ts961Ztz0hchjWVZ/y6j5eF/FNxCc7dwdNxTcrDeme31n2C81pX9e",
+      "name": "Pramod",
+      "role": "user"
+    }
+  ],
+  "bookings": [
+    {
+      "destinationId": "1",
+      "destinationName": "Santorini, Greece",
+      "guests": 2,
+      "date": "2026-03-27",
+      "totalPrice": 2400,
+      "userEmail": "chendagepramod@gmail.com",
+      "userName": "Pramod",
+      "id": "1774499116879",
+      "userId": "1774499044771",
+      "status": "pending",
+      "createdAt": "2026-03-26T04:25:16.879Z"
+    }
+  ],
+  "inquiries": []
+}

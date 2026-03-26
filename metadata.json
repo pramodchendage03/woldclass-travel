@@ -1,0 +1,7 @@
+{
+  "name": "WorldClass Travel",
+  "description": "A premium international travel agency platform with a full CMS and admin dashboard.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

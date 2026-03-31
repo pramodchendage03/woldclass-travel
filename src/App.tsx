@@ -16,7 +16,9 @@ import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import AdminDashboard from "./pages/AdminDashboard";
+import Profile from "./pages/Profile";
 import DestinationDetail from "./pages/DestinationDetail";
+import Completion from "./pages/Completion";
 import { Toaster } from "sonner";
 
 export default function App() {
@@ -40,7 +42,9 @@ export default function App() {
               <Route path="/signup" element={<Signup />} />
               <Route path="/book/:id" element={<Booking />} />
               <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
+              <Route path="/completion/:id" element={<Completion />} />
               <Route path="/my-bookings" element={<MyBookings />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>

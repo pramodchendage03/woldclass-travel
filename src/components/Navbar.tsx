@@ -82,10 +82,10 @@ export default function Navbar() {
                   <Briefcase className="h-4 w-4" />
                   <span className="text-xs font-bold uppercase tracking-widest">Bookings</span>
                 </Link>
-                <div className="flex items-center space-x-2 text-ink/70">
+                <Link to="/profile" className="flex items-center space-x-2 text-ink/70 hover:text-gold transition-colors">
                   <User className="h-4 w-4" />
                   <span className="text-xs font-medium">{user.name}</span>
-                </div>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-2 text-ink/70 hover:text-gold transition-colors"
@@ -158,6 +158,14 @@ export default function Navbar() {
                         <span className="text-sm font-bold uppercase tracking-widest">Admin Dashboard</span>
                       </Link>
                     )}
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-4 text-ink/70"
+                    >
+                      <User className="h-5 w-5" />
+                      <span className="text-sm font-bold uppercase tracking-widest">My Profile</span>
+                    </Link>
                     <Link
                       to="/my-bookings"
                       onClick={() => setIsOpen(false)}

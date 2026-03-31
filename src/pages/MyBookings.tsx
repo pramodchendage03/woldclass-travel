@@ -147,7 +147,7 @@ const MyBookings: React.FC = () => {
 
     if (success) {
       toast.success("Balance paid successfully!");
-      navigate(`/booking-confirmation/${payingBooking.id}`, {
+      navigate(`/completion/${payingBooking.id}`, {
         state: {
           paymentInfo: {
             amount: remainingAmount,

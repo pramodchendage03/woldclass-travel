@@ -1,14 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useContent, SiteData, Destination, BlogPost } from "../context/ContentContext";
-import { LayoutDashboard, FileText, MapPin, Settings, Image as ImageIcon, Save, Plus, Trash2, LogOut, MessageSquare, Calendar, Users, UserPlus, CreditCard, TrendingUp, Briefcase, Globe, ShieldCheck, X } from "lucide-react";
+import { LayoutDashboard, FileText, MapPin, Settings, Image as ImageIcon, Save, Plus, Trash2, LogOut, MessageSquare, Calendar as CalendarIcon, Users, UserPlus, CreditCard, TrendingUp, Briefcase, Globe, ShieldCheck, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, eachDayOfInterval, parseISO } from "date-fns";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ImageUpload } from "../components/ImageUpload";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { motion } from "motion/react";
+
+const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
 export default function AdminDashboard() {
-  const { data, updateData, logout, isAdmin, user } = useContent();
+  return (
+    <Elements stripe={stripePromise}>
+      <AdminDashboardContent />
+    </Elements>
+  );
+}
+
+function AdminDashboardContent() {
+  const { data, loading, updateData, logout, isAdmin, user } = useContent();
+  const stripe = useStripe();
+  const elements = useElements();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("stats");
-  const [localData, setLocalData] = useState<SiteData | null>(data);
+  const [localData, setLocalData] = useState<SiteData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
@@ -19,6 +37,8 @@ export default function AdminDashboard() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [newAdmin, setNewAdmin] = useState({ email: "", password: "", name: "", role: "admin" });
   const [editingBooking, setEditingBooking] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [processingPayment, setProcessingPayment] = useState<any>(null);
   const [paymentDetails, setPaymentDetails] = useState({
     cardNumber: "",
@@ -26,18 +46,6 @@ export default function AdminDashboard() {
     cvv: "",
     amount: 0
   });
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchStats();
-      fetchBookings();
-      fetchInquiries();
-      fetchAllUsers();
-      fetchPayments();
-      fetchGatewayStatus();
-    }
-  }, [isAdmin]);
 
   const fetchGatewayStatus = async () => {
     const res = await fetch("/api/admin/gateway-status", {
@@ -80,6 +88,55 @@ export default function AdminDashboard() {
     });
     if (res.ok) setInquiries(await res.json());
   };
+
+  useEffect(() => {
+    if (data && !localData) {
+      setLocalData(data);
+    }
+  }, [data, localData]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchStats();
+      fetchBookings();
+      fetchInquiries();
+      fetchAllUsers();
+      fetchPayments();
+      fetchGatewayStatus();
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      navigate("/login");
+    }
+  }, [loading, isAdmin, navigate]);
+
+  const filteredBookings = useMemo(() => {
+    if (!selectedDate) return bookings;
+    return bookings.filter(b => isSameDay(parseISO(b.date), selectedDate));
+  }, [bookings, selectedDate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-paper">
+        <Loader2 className="h-12 w-12 text-gold animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-paper p-8 text-center">
+        <ShieldCheck className="h-20 w-20 text-red-400 mb-8" />
+        <h2 className="text-4xl font-serif text-ink mb-4 italic">Access Restricted</h2>
+        <p className="text-ink/60 max-w-md font-light mb-12 leading-relaxed">You do not have the required administrative privileges to access this dashboard.</p>
+        <Link to="/" className="gold-gradient text-white px-12 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] luxury-shadow">Return to Home</Link>
+      </div>
+    );
+  }
+
+  if (!localData) return null;
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +199,14 @@ export default function AdminDashboard() {
 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Email verification regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newAdmin.email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -166,9 +231,50 @@ export default function AdminDashboard() {
 
   const handleAdminProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!processingPayment) return;
+    if (!processingPayment || !stripe || !elements) return;
 
+    setIsSaving(true);
     try {
+      // 1. Create Payment Intent
+      const intentRes = await fetch("/api/create-payment-intent", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          bookingId: processingPayment.id,
+          amount: paymentDetails.amount,
+          isAdvance: false
+        })
+      });
+
+      if (!intentRes.ok) throw new Error("Failed to create payment intent");
+      const { clientSecret } = await intentRes.json();
+
+      // 2. Confirm Card Payment
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) throw new Error("Card element not found");
+
+      // Use createPaymentMethod to get card details like last4
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          email: processingPayment.userEmail,
+          name: processingPayment.userName
+        }
+      });
+
+      if (pmError) throw new Error(pmError.message);
+
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: paymentMethod.id
+      });
+
+      if (error) throw new Error(error.message);
+
+      // 3. Record Payment in our system
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { 
@@ -178,8 +284,10 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           bookingId: processingPayment.id,
           amount: paymentDetails.amount,
-          paymentMethod: "Manual",
-          isAdvance: false // Admin usually processes full payment
+          paymentMethod: "Card",
+          transactionId: paymentIntent.id,
+          last4: paymentMethod.card?.last4 || "4242",
+          isAdvance: false
         })
       });
 
@@ -192,10 +300,12 @@ export default function AdminDashboard() {
         fetchStats();
       } else {
         const err = await res.json();
-        toast.error(err.message || "Payment failed");
+        toast.error(err.message || "Payment recording failed");
       }
-    } catch (err) {
-      toast.error("Network error processing payment");
+    } catch (err: any) {
+      toast.error(err.message || "Payment failed");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -215,20 +325,114 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    if (!isAdmin) {
-      navigate("/login");
-    }
-  }, [isAdmin, navigate]);
+  const renderCalendar = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+
+    const dateFormat = "d";
+    const rows = [];
+    let days = [];
+    let day = startDate;
+    let formattedDate = "";
+
+    const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+
+    return (
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gold/10 luxury-shadow">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gold/5 rounded-xl text-gold luxury-border">
+              <CalendarIcon className="h-5 w-5" />
+            </div>
+            <h3 className="text-xl font-serif text-ink italic">{format(currentMonth, "MMMM yyyy")}</h3>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className="p-2 hover:bg-gold/5 rounded-xl text-ink/40 hover:text-gold transition-all"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              className="p-2 hover:bg-gold/5 rounded-xl text-ink/40 hover:text-gold transition-all"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2 mb-4">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+            <div key={d} className="text-center text-[10px] font-bold text-ink/30 uppercase tracking-widest py-2">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-2">
+          {calendarDays.map((day, idx) => {
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            const hasBookings = bookings.some(b => isSameDay(parseISO(b.date), day));
+
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelectedDate(isSelected ? null : day)}
+                className={`
+                  relative h-14 rounded-2xl flex flex-col items-center justify-center transition-all duration-300
+                  ${!isCurrentMonth ? "text-ink/10" : "text-ink"}
+                  ${isSelected ? "bg-gold text-white luxury-shadow scale-105 z-10" : "hover:bg-gold/5"}
+                  ${hasBookings && !isSelected ? "border border-gold/20" : "border border-transparent"}
+                `}
+              >
+                <span className="text-sm font-medium">{format(day, "d")}</span>
+                {hasBookings && (
+                  <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? "bg-white" : "bg-gold"}`}></div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        
+        {selectedDate && (
+          <div className="mt-6 flex justify-center">
+            <button 
+              onClick={() => setSelectedDate(null)}
+              className="text-[10px] font-bold text-gold uppercase tracking-widest hover:underline"
+            >
+              Clear Filter: {format(selectedDate, "MMM d, yyyy")}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (!isAdmin || !localData) return null;
 
   const handleSave = async () => {
-    await updateData(localData);
-    toast.success("Changes saved successfully!");
+    if (!localData) return;
+    setIsSaving(true);
+    try {
+      const success = await updateData(localData);
+      if (success) {
+        toast.success("Changes saved successfully!");
+      } else {
+        toast.error("Failed to save changes. Please try again.");
+      }
+    } catch (err) {
+      toast.error("An error occurred while saving.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateSettings = (key: string, value: any) => {
+    if (!localData) return;
     setLocalData({
       ...localData,
       settings: { ...localData.settings, [key]: value }
@@ -236,6 +440,7 @@ export default function AdminDashboard() {
   };
 
   const updateHome = (key: string, value: any) => {
+    if (!localData || !localData.content || !localData.content.home) return;
     setLocalData({
       ...localData,
       content: {
@@ -246,6 +451,7 @@ export default function AdminDashboard() {
   };
 
   const addDestination = async () => {
+    if (!localData) return;
     const newDest: Destination = {
       id: Date.now().toString(),
       name: "New Destination",
@@ -257,8 +463,8 @@ export default function AdminDashboard() {
       type: "Adventure"
     };
     const updated = {
-      ...localData!,
-      destinations: [...localData!.destinations, newDest]
+      ...localData,
+      destinations: [...localData.destinations, newDest]
     };
     setLocalData(updated);
     try {
@@ -386,9 +592,9 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex">
+    <div className="fixed inset-0 z-[60] bg-paper flex overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-gold/10 flex flex-col fixed h-full luxury-shadow z-20">
+      <aside className="w-72 bg-white border-r border-gold/10 flex flex-col h-full luxury-shadow z-20">
         <div className="p-10 border-b border-gold/5">
           <h1 className="text-2xl font-serif text-gold italic tracking-tight">WorldClass</h1>
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-ink/40 mt-2">Admin Console</p>
@@ -403,7 +609,7 @@ export default function AdminDashboard() {
           </Link>
           {[
             { id: "stats", icon: LayoutDashboard, label: "Overview" },
-            { id: "bookings", icon: Calendar, label: "Bookings" },
+            { id: "bookings", icon: CalendarIcon, label: "Bookings" },
             { id: "payments", icon: CreditCard, label: "Payments" },
             { id: "inquiries", icon: MessageSquare, label: "Inquiries" },
             { id: "users", icon: Users, label: "User Management" },
@@ -436,8 +642,8 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-72 overflow-y-auto">
-        <header className="bg-white/80 backdrop-blur-md border-b border-gold/10 px-12 py-6 flex justify-between items-center sticky top-0 z-10">
+      <main className="flex-1 overflow-y-auto">
+        <header className="bg-white/80 backdrop-blur-md border-b border-gold/10 px-12 py-6 flex justify-between items-center sticky top-0 z-40">
           <div className="flex items-center space-x-4">
             <div className="w-1 h-8 bg-gold rounded-full"></div>
             <h2 className="text-2xl font-serif text-ink capitalize tracking-tight">{activeTab} Management</h2>
@@ -445,14 +651,20 @@ export default function AdminDashboard() {
           {["content", "destinations", "blog", "settings", "services"].includes(activeTab) && (
             <button
               onClick={handleSave}
-              className="gold-gradient text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] flex items-center luxury-shadow hover:scale-105 transition-all"
+              disabled={isSaving}
+              className={`gold-gradient text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] flex items-center luxury-shadow hover:scale-105 active:scale-95 transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Save className="h-4 w-4 mr-3" /> Save Changes
+              {isSaving ? (
+                <div className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           )}
         </header>
 
-        <div className="p-12 max-w-7xl mx-auto">
+        <div className="p-6 md:p-12 w-full">
           {activeTab === "stats" && stats && (
             <div className="space-y-12">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -469,7 +681,7 @@ export default function AdminDashboard() {
                 <div className="bg-white p-8 rounded-[2rem] border border-gold/10 luxury-shadow group hover:border-gold/30 transition-all">
                   <div className="flex items-center justify-between mb-6">
                     <div className="p-4 bg-gold/5 rounded-2xl text-gold luxury-border">
-                      <Calendar className="h-6 w-6" />
+                      <CalendarIcon className="h-6 w-6" />
                     </div>
                     <span className="text-[10px] font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100 uppercase tracking-widest">+5%</span>
                   </div>
@@ -549,6 +761,114 @@ export default function AdminDashboard() {
 
           {activeTab === "bookings" && (
             <div className="space-y-8">
+              {renderCalendar()}
+
+              {processingPayment && (
+                <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="bg-white w-full max-w-xl rounded-[2.5rem] luxury-shadow border border-gold/10 overflow-hidden"
+                  >
+                    <div className="p-8 border-b border-gold/5 flex items-center justify-between bg-gold/[0.02]">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-gold/5 rounded-xl text-gold luxury-border">
+                          <CreditCard className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-serif text-ink italic">Process Secure Payment</h3>
+                          <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest mt-1">Booking #{processingPayment.id.slice(-8).toUpperCase()}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setProcessingPayment(null)}
+                        className="p-2 hover:bg-gold/5 rounded-full text-ink/40 hover:text-ink transition-colors"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAdminProcessPayment} className="p-8 space-y-8">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="bg-gold/5 p-6 rounded-2xl border border-gold/10">
+                          <p className="text-[10px] font-bold text-ink/40 uppercase tracking-widest mb-1">Customer</p>
+                          <p className="font-serif text-ink">{processingPayment.userName}</p>
+                          <p className="text-[10px] text-ink/60 mt-1">{processingPayment.userEmail}</p>
+                        </div>
+                        <div className="bg-gold/5 p-6 rounded-2xl border border-gold/10">
+                          <p className="text-[10px] font-bold text-ink/40 uppercase tracking-widest mb-1">Total Amount</p>
+                          <p className="text-2xl font-serif text-gold italic">${processingPayment.totalPrice.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Amount to Charge ($)</label>
+                        <input
+                          type="number"
+                          required
+                          value={paymentDetails.amount || ""}
+                          onChange={(e) => setPaymentDetails({ ...paymentDetails, amount: parseInt(e.target.value) || 0 })}
+                          className="w-full px-6 py-4 bg-paper border border-gold/5 rounded-2xl outline-none text-ink focus:ring-2 focus:ring-gold/20 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Card Details</label>
+                        <div className="p-6 bg-paper border border-gold/5 rounded-2xl">
+                          <CardElement 
+                            options={{
+                              style: {
+                                base: {
+                                  fontSize: '16px',
+                                  color: '#141414',
+                                  '::placeholder': {
+                                    color: '#aab7c4',
+                                  },
+                                },
+                                invalid: {
+                                  color: '#dc2626',
+                                },
+                              },
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2 text-[10px] text-ink/40">
+                          <ShieldCheck className="h-3 w-3" />
+                          <span>Payments are encrypted and processed securely via Stripe</span>
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-4 pt-4">
+                        <button
+                          type="submit"
+                          disabled={isSaving || !stripe || !elements}
+                          className="flex-1 gold-gradient text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] luxury-shadow hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2"
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="h-4 w-4" />
+                              <span>Confirm Payment</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProcessingPayment(null)}
+                          className="px-8 py-4 bg-paper text-ink/60 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-gold/5 transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
+
               {editingBooking && (
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gold/10 luxury-shadow space-y-6">
                   <h3 className="text-xl font-serif text-ink">Edit Booking #{editingBooking.id.slice(-8).toUpperCase()}</h3>
@@ -575,8 +895,8 @@ export default function AdminDashboard() {
                       <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Total Price ($)</label>
                       <input
                         type="number"
-                        value={editingBooking.totalPrice || ""}
-                        onChange={(e) => setEditingBooking({ ...editingBooking, totalPrice: parseInt(e.target.value) || 0 })}
+                        value={editingBooking.totalPrice}
+                        onChange={(e) => setEditingBooking({ ...editingBooking, totalPrice: Number(e.target.value) })}
                         className="w-full px-6 py-4 bg-paper border border-gold/5 rounded-2xl outline-none text-ink"
                       />
                     </div>
@@ -652,7 +972,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gold/5">
-                      {bookings.map((b: any) => (
+                      {filteredBookings.map((b: any) => (
                         <tr key={b.id} className="hover:bg-gold/[0.01] transition-colors">
                           <td className="px-8 py-6 text-[10px] font-mono text-ink/30">#{b.id.slice(-8).toUpperCase()}</td>
                           <td className="px-8 py-6 font-serif text-lg text-ink">{b.destinationName}</td>
@@ -1207,8 +1527,8 @@ export default function AdminDashboard() {
                         <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Price ($)</label>
                         <input
                           type="number"
-                          value={dest.price || ""}
-                          onChange={(e) => updateDestination(dest.id, "price", parseInt(e.target.value) || 0)}
+                          value={dest.price}
+                          onChange={(e) => updateDestination(dest.id, "price", Number(e.target.value))}
                           className="w-full px-6 py-4 bg-paper border border-gold/5 rounded-2xl focus:ring-2 focus:ring-gold/20 outline-none text-ink text-sm transition-all"
                           placeholder="Price"
                         />

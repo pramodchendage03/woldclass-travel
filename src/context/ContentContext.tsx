@@ -72,7 +72,7 @@ export interface User {
 interface ContentContextType {
   data: SiteData | null;
   loading: boolean;
-  updateData: (newData: SiteData) => Promise<void>;
+  updateData: (newData: SiteData) => Promise<boolean>;
   user: User | null;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -124,9 +124,12 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         setData(newData);
+        return true;
       }
+      return false;
     } catch (err) {
       console.error("Failed to update data", err);
+      return false;
     }
   };
 
@@ -196,7 +199,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       return await res.json();
     } catch (err: any) {
       console.error("Booking failed", err);
-      return null;
+      throw err;
     }
   };
 
@@ -277,10 +280,13 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(paymentData),
       });
       const json = await res.json();
-      return { success: res.ok, data: json };
+      if (!res.ok) {
+        throw new Error(json.message || json.error || "Payment processing failed");
+      }
+      return { success: true, data: json };
     } catch (err: any) {
       console.error("Payment processing failed", err);
-      return { success: false, error: err.message };
+      throw err;
     }
   };
 

@@ -8,6 +8,7 @@ export default function Home() {
   if (!data) return null;
 
   const { home } = data.content;
+  if (!home) return null;
 
   return (
     <div className="space-y-32 pb-32 bg-paper">

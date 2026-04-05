@@ -479,14 +479,19 @@ function AdminDashboardContent() {
     }
   };
 
-  const removeDestination = (id: string) => {
+  const removeDestination = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this destination?")) return;
     const updated = {
-      ...localData,
-      destinations: localData.destinations.filter(d => d.id !== id)
+      ...localData!,
+      destinations: localData!.destinations.filter(d => d.id !== id)
     };
     setLocalData(updated);
-    updateData(updated);
-    toast.success("Destination removed!");
+    try {
+      await updateData(updated);
+      toast.success("Destination removed!");
+    } catch (err) {
+      toast.error("Failed to remove destination");
+    }
   };
 
   const updateDestination = (id: string, field: keyof Destination, value: any) => {
@@ -521,14 +526,19 @@ function AdminDashboardContent() {
     }
   };
 
-  const removeService = (id: string) => {
+  const removeService = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this service?")) return;
     const updated = {
-      ...localData,
-      services: localData.services.filter(s => s.id !== id)
+      ...localData!,
+      services: localData!.services.filter(s => s.id !== id)
     };
     setLocalData(updated);
-    updateData(updated);
-    toast.success("Service removed!");
+    try {
+      await updateData(updated);
+      toast.success("Service removed!");
+    } catch (err) {
+      toast.error("Failed to remove service");
+    }
   };
 
   const updateService = (id: string, field: string, value: any) => {

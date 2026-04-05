@@ -549,33 +549,81 @@ async function startServer() {
     }
   });
 
+  // Reviews Routes
+  app.get("/api/reviews/:type/:id", async (req, res) => {
+    const { type, id } = req.params;
+    if (supabase) {
+      const { data, error } = await supabase.from('reviews').select('*').eq('targetType', type).eq('targetId', id).order('createdAt', { ascending: false });
+      if (error) return res.status(500).json({ error: error.message });
+      res.json(data);
+    } else {
+      const data = JSON.parse(await fs.readFile(path.join(__dirname, "data.json"), "utf-8"));
+      const reviews = (data.reviews || []).filter((r: any) => r.targetType === type && r.targetId === id);
+      res.json(reviews.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }
+  });
+
+  app.post("/api/reviews", authenticateToken, async (req, res) => {
+    const { targetType, targetId, rating, comment } = req.body;
+    const user = (req as any).user;
+
+    if (!targetType || !targetId || !rating) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const review = {
+      id: Date.now().toString(),
+      userId: user.id,
+      userName: user.name,
+      targetType, // 'destination' or 'service'
+      targetId,
+      rating: Number(rating),
+      comment,
+      createdAt: new Date().toISOString()
+    };
+
+    if (supabase) {
+      const { data, error } = await supabase.from('reviews').insert([review]).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      res.json(data);
+    } else {
+      const data = await getData();
+      if (!data.reviews) data.reviews = [];
+      data.reviews.push(review);
+      await saveData(data);
+      res.json(review);
+    }
+  });
+
   // Payment processing
   // Payment processing
   app.post("/api/verify-upi-payment", authenticateToken, async (req, res) => {
     const { transactionId, amount } = req.body;
     
     // In a real app, this would call a bank API or a payment gateway's status check API.
-    // For this demo, we'll simulate a verification process.
-    // We'll "verify" any transaction ID that starts with 'WT' or 'WC' and is 10+ characters long.
+    // For this demo, we'll simulate a more realistic verification process.
+    // We'll require a 12-digit UTR number (standard in India for UPI).
     
     console.log(`🔍 Verifying UPI Payment: ${transactionId} for amount $${amount}`);
     
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
-    const isValid = (transactionId.startsWith('WT') || transactionId.startsWith('WC') || transactionId.length >= 8);
+    // Check if transactionId is a 12-digit number (standard UTR format) or the demo Order ID format
+    const is12DigitNumber = /^\d{12}$/.test(transactionId);
+    const isDemoOrderId = /^WT\d+$/.test(transactionId);
     
-    if (isValid) {
+    if (is12DigitNumber || isDemoOrderId) {
       res.json({ 
         success: true, 
         status: 'verified', 
-        message: "Payment verified successfully by bank." 
+        message: "Payment verified successfully by bank. Ref: " + transactionId
       });
     } else {
       res.status(400).json({ 
         success: false, 
         status: 'failed', 
-        message: "Invalid transaction ID or payment not found." 
+        message: "Invalid UTR number. Please enter the 12-digit transaction ID from your payment app." 
       });
     }
   });
@@ -995,6 +1043,26 @@ View details: ${confirmationLink}
     } else {
       const data = JSON.parse(await fs.readFile(path.join(__dirname, "data.json"), "utf-8"));
       res.json(data.payments || []);
+    }
+  });
+
+  app.put("/api/users/profile", authenticateToken, async (req, res) => {
+    const { name, email } = req.body;
+    const user = (req as any).user;
+
+    if (supabase) {
+      const { data, error } = await supabase.from('users').update({ name, email }).eq('id', user.id).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ id: data.id, name: data.name, email: data.email, role: data.role });
+    } else {
+      const data = await getData();
+      const index = data.users.findIndex((u: any) => u.id === user.id);
+      if (index === -1) return res.status(404).json({ error: "User not found" });
+      
+      data.users[index].name = name;
+      data.users[index].email = email;
+      await saveData(data);
+      res.json({ id: data.users[index].id, name: data.users[index].name, email: data.users[index].email, role: data.users[index].role });
     }
   });
 

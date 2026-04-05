@@ -4,9 +4,10 @@ import { useContent, Service } from '../context/ContentContext';
 import { motion } from 'motion/react';
 import { 
   Map, FileText, Hotel, Plane, Car, Ship, Compass, Shield, 
-  Briefcase, Home, Users, Coffee, Heart, ArrowLeft, CheckCircle 
+  Briefcase, Home, Users, Coffee, Heart, ArrowLeft, CheckCircle, Star 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ReviewSection from '../components/ReviewSection';
 
 const iconMap: { [key: string]: any } = {
   Map, FileText, Hotel, Plane, Car, Ship, Compass, Shield, 
@@ -20,6 +21,37 @@ const ServiceDetail: React.FC = () => {
   const navigate = useNavigate();
   const [service, setService] = useState<Service | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const res = await fetch(`/api/reviews/service/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setReviews(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+      }
+    };
+    if (id) fetchReviews();
+  }, [id]);
+
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+    : "5.0";
+  const [inquiryData, setInquiryData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    message: ''
+  });
+
+  useEffect(() => {
+    if (user) {
+      setInquiryData(prev => ({ ...prev, name: user.name, email: user.email }));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (services.length > 0) {
@@ -49,14 +81,15 @@ const ServiceDetail: React.FC = () => {
         body: JSON.stringify({
           serviceId: service?.id,
           serviceName: service?.title,
-          userName: user.name,
-          userEmail: user.email,
-          message: `Inquiry about ${service?.title} service.`
+          userName: inquiryData.name,
+          userEmail: inquiryData.email,
+          message: inquiryData.message || `Inquiry about ${service?.title} service.`
         })
       });
 
       if (response.ok) {
         toast.success("Inquiry sent successfully! Our experts will contact you soon.");
+        setInquiryData(prev => ({ ...prev, message: '' }));
       } else {
         toast.error("Failed to send inquiry. Please try again.");
       }
@@ -100,9 +133,18 @@ const ServiceDetail: React.FC = () => {
             <span className="text-gold font-medium tracking-widest uppercase text-sm mb-4 block">
               {service.category || 'Premium Service'}
             </span>
-            <h1 className="text-5xl font-serif mb-6 leading-tight">
+            <h1 className="text-5xl font-serif mb-4 leading-tight">
               {service.title}
             </h1>
+            <div className="flex items-center space-x-4 mb-8">
+              <div className="flex items-center text-gold">
+                <Star className="w-4 h-4 mr-1 fill-gold" />
+                <span className="font-bold">{averageRating}</span>
+              </div>
+              <span className="text-ink/40 text-sm">
+                ({reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'})
+              </span>
+            </div>
             <p className="text-xl text-ink/70 mb-8 leading-relaxed">
               {service.description}
             </p>
@@ -125,6 +167,8 @@ const ServiceDetail: React.FC = () => {
                 ))}
               </ul>
             </div>
+
+            <ReviewSection targetType="service" targetId={service.id} />
           </motion.div>
 
           <motion.div
@@ -143,7 +187,8 @@ const ServiceDetail: React.FC = () => {
                 <label className="block text-sm font-medium text-ink/70 mb-2 uppercase tracking-wider">Full Name</label>
                 <input 
                   type="text" 
-                  defaultValue={user?.name || ''}
+                  value={inquiryData.name}
+                  onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
                   required
                   className="w-full px-4 py-3 rounded-xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/50 bg-paper/50"
                   placeholder="Your Name"
@@ -153,7 +198,8 @@ const ServiceDetail: React.FC = () => {
                 <label className="block text-sm font-medium text-ink/70 mb-2 uppercase tracking-wider">Email Address</label>
                 <input 
                   type="email" 
-                  defaultValue={user?.email || ''}
+                  value={inquiryData.email}
+                  onChange={(e) => setInquiryData({ ...inquiryData, email: e.target.value })}
                   required
                   className="w-full px-4 py-3 rounded-xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/50 bg-paper/50"
                   placeholder="your@email.com"
@@ -163,6 +209,8 @@ const ServiceDetail: React.FC = () => {
                 <label className="block text-sm font-medium text-ink/70 mb-2 uppercase tracking-wider">Additional Requirements</label>
                 <textarea 
                   rows={4}
+                  value={inquiryData.message}
+                  onChange={(e) => setInquiryData({ ...inquiryData, message: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/50 bg-paper/50"
                   placeholder="Tell us more about your needs..."
                 ></textarea>

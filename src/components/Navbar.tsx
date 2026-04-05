@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useContent } from "../context/ContentContext";
-import { Menu, X, Globe, User, ShieldCheck, LogOut, Briefcase } from "lucide-react";
+import { Menu, X, Globe, User, ShieldCheck, LogOut, Briefcase, Search, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -8,14 +8,26 @@ export default function Navbar() {
   const { data, user, isAdmin, logout } = useContent();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+
+  const searchResults = searchQuery.length > 1 ? [
+    ...(data?.destinations.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.description.toLowerCase().includes(searchQuery.toLowerCase())).map(d => ({ ...d, type: 'destination' })) || []),
+    ...(data?.services.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.description.toLowerCase().includes(searchQuery.toLowerCase())).map(s => ({ ...s, name: s.title, type: 'service' })) || [])
+  ].slice(0, 5) : [];
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  }, [location.pathname]);
 
   if (!data) return null;
 
@@ -24,6 +36,7 @@ export default function Navbar() {
     { name: "Destinations", path: "/destinations" },
     { name: "Services", path: "/services" },
     { name: "About", path: "/about" },
+    { name: "FAQ", path: "/faq" },
     { name: "Blog", path: "/blog" },
     { name: "Contact", path: "/contact" },
   ];
@@ -67,6 +80,12 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center space-x-6">
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 text-ink/70 hover:text-gold transition-colors"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             {user ? (
               <div className="flex items-center space-x-6">
                 {isAdmin && (
@@ -114,7 +133,13 @@ export default function Navbar() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center space-x-4">
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 text-ink/70"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-ink p-2"
@@ -124,6 +149,69 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Search Overlay */}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-ink/95 backdrop-blur-xl flex flex-col items-center pt-32 px-4"
+          >
+            <button 
+              onClick={() => setIsSearchOpen(false)}
+              className="absolute top-10 right-10 text-white/40 hover:text-white transition-colors"
+            >
+              <X className="w-10 h-10" />
+            </button>
+
+            <div className="w-full max-w-3xl">
+              <div className="relative mb-12">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gold w-8 h-8" />
+                <input 
+                  autoFocus
+                  type="text"
+                  placeholder="Where would you like to go?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-20 pr-8 py-8 bg-white/5 border-b-2 border-gold/30 focus:border-gold outline-none text-3xl font-serif text-white placeholder:text-white/20 transition-all"
+                />
+              </div>
+
+              <div className="space-y-4">
+                {searchResults.map((result: any) => (
+                  <Link
+                    key={result.id}
+                    to={result.type === 'destination' ? `/destinations/${result.id}` : `/services/${result.id}`}
+                    className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 hover:border-gold/30 transition-all group"
+                  >
+                    <div className="flex items-center gap-6">
+                      {result.type === 'destination' ? (
+                        <div className="w-16 h-16 rounded-xl overflow-hidden">
+                          <img src={result.image} className="w-full h-full object-cover" alt={result.name} />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-gold/10 flex items-center justify-center">
+                          <Briefcase className="w-8 h-8 text-gold" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-xl font-serif text-white italic">{result.name}</h4>
+                        <p className="text-[10px] font-bold text-gold uppercase tracking-widest">{result.type}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-6 h-6 text-white/20 group-hover:text-gold group-hover:translate-x-2 transition-all" />
+                  </Link>
+                ))}
+                {searchQuery.length > 1 && searchResults.length === 0 && (
+                  <p className="text-center text-white/40 font-serif italic text-xl">No results found for "{searchQuery}"</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Menu */}
       <AnimatePresence>

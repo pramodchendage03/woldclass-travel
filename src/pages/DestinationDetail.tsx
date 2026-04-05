@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useContent, Destination } from "../context/ContentContext";
 import { motion } from "motion/react";
-import { MapPin, Calendar, Users, ArrowLeft, ArrowRight, Star, ShieldCheck, CheckCircle2, Globe, Clock, Info } from "lucide-react";
+import { MapPin, Calendar, Users, ArrowLeft, ArrowRight, Star, ShieldCheck, CheckCircle2, Globe, Clock, Info, Map as MapIcon } from "lucide-react";
+import ReviewSection from "../components/ReviewSection";
 
 export default function DestinationDetail() {
   const { id } = useParams();
@@ -10,6 +11,26 @@ export default function DestinationDetail() {
   const navigate = useNavigate();
   const [destination, setDestination] = useState<Destination | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const res = await fetch(`/api/reviews/destination/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setReviews(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+      }
+    };
+    if (id) fetchReviews();
+  }, [id]);
+
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+    : "5.0";
 
   useEffect(() => {
     if (data && id) {
@@ -58,7 +79,7 @@ export default function DestinationDetail() {
                   {destination.type}
                 </span>
                 <div className="flex items-center text-white/80 text-[10px] font-bold uppercase tracking-[0.2em]">
-                  <Star className="w-3 h-3 text-gold mr-2 fill-gold" /> 4.9 (120+ Reviews)
+                  <Star className="w-3 h-3 text-gold mr-2 fill-gold" /> {averageRating} ({reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'})
                 </div>
               </div>
               <h1 className="text-6xl md:text-8xl font-serif text-ink mb-6 leading-tight">
@@ -147,6 +168,43 @@ export default function DestinationDetail() {
                 ))}
               </div>
             </section>
+
+            <section>
+              <h2 className="text-3xl font-serif text-ink italic mb-8 border-b border-gold/10 pb-4">Location</h2>
+              <div className="w-full h-[400px] rounded-[2.5rem] overflow-hidden luxury-shadow border border-gold/10 relative group">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  style={{ border: 0 }}
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent(destination.name)}`}
+                  allowFullScreen
+                  title="Destination Location"
+                ></iframe>
+                {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
+                  <div className="absolute inset-0 bg-ink/5 flex flex-col items-center justify-center text-center p-10">
+                    <MapIcon className="w-12 h-12 text-gold/40 mb-4" />
+                    <p className="text-ink/60 font-light italic">Map view for {destination.name}</p>
+                    <p className="text-[10px] text-ink/30 uppercase tracking-widest mt-2">API Key Required for Live Map</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="bg-gold/5 p-10 rounded-[3rem] border border-gold/10 text-center">
+              <h3 className="text-3xl font-serif italic text-ink mb-4">Ready for an Unforgettable Escape?</h3>
+              <p className="text-ink/60 font-light mb-8 max-w-xl mx-auto">
+                Join us for a journey beyond the ordinary. Secure your reservation today and let our concierge handle every detail of your luxury experience.
+              </p>
+              <Link
+                to={`/book/${destination.id}`}
+                className="inline-flex items-center gold-gradient text-white px-12 py-5 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] luxury-shadow hover:scale-105 active:scale-95 transition-all group"
+              >
+                Book This Journey Now <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </section>
+
+            <ReviewSection targetType="destination" targetId={destination.id} />
           </div>
 
           {/* Sidebar / Booking Card */}

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useContent } from "../context/ContentContext";
 import { motion } from "motion/react";
 import { Globe, Award, Users, Heart } from "lucide-react";
@@ -145,6 +146,23 @@ export default function About() {
               </motion.div>
             ))}
           </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="mt-48 bg-white rounded-[4rem] p-16 md:p-32 luxury-shadow border border-gold/10 text-center">
+          <span className="text-gold font-medium tracking-[0.4em] uppercase text-xs mb-6 block">Support</span>
+          <h2 className="text-5xl font-serif text-ink mb-8">Common Questions</h2>
+          <p className="text-ink/40 max-w-2xl mx-auto font-light text-lg leading-relaxed mb-12">
+            Have questions about bookings, payments, or travel requirements? 
+            Our comprehensive FAQ has all the answers you need.
+          </p>
+          <Link 
+            to="/faq" 
+            className="inline-flex items-center space-x-4 gold-gradient text-white px-12 py-5 rounded-2xl text-xs font-bold uppercase tracking-widest luxury-shadow hover:scale-105 transition-all"
+          >
+            <span>View All FAQs</span>
+            <Globe className="w-4 h-4" />
+          </Link>
         </div>
       </div>
     </div>

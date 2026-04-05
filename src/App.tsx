@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
 import DestinationDetail from "./pages/DestinationDetail";
 import Completion from "./pages/Completion";
+import FAQ from "./pages/FAQ";
 import { Toaster } from "sonner";
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/destinations" element={<Destinations />} />
               <Route path="/destinations/:id" element={<DestinationDetail />} />
               <Route path="/services" element={<Services />} />

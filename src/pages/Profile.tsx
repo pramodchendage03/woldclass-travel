@@ -9,6 +9,11 @@ export default function Profile() {
   const { user, logout, isAdmin } = useContent();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user.name,
+    email: user.email
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!user) {
     navigate("/login");
@@ -19,6 +24,42 @@ export default function Profile() {
     logout();
     navigate("/");
     toast.success("Logged out successfully");
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("Failed to update profile");
+
+      const updatedUser = await response.json();
+      // Update local storage and context
+      const token = localStorage.getItem("token");
+      if (token) {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        // We might need a way to refresh the context user, but for now, let's just toast and reload or suggest logout
+        toast.success("Profile updated successfully. Please log in again to see changes.");
+        setIsEditing(false);
+        setTimeout(() => {
+          logout();
+          navigate("/login");
+        }, 2000);
+      }
+    } catch (error) {
+      toast.error("Error updating profile");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -116,9 +157,37 @@ export default function Profile() {
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="p-6 bg-paper rounded-2xl border border-gold/10 space-y-4"
+                  className="p-6 bg-paper rounded-2xl border border-gold/10"
                 >
-                  <p className="text-xs text-ink/60 font-light italic">Profile editing is currently restricted to administrators. Please contact support to change your email or name.</p>
+                  <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-ink/40 uppercase tracking-widest">Full Name</label>
+                      <input 
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full p-4 bg-white border border-gold/10 rounded-xl text-sm focus:outline-none focus:border-gold"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-ink/40 uppercase tracking-widest">Email Address</label>
+                      <input 
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full p-4 bg-white border border-gold/10 rounded-xl text-sm focus:outline-none focus:border-gold"
+                        required
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full p-4 bg-gold text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gold/90 transition-all disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Updating..." : "Save Changes"}
+                    </button>
+                  </form>
                 </motion.div>
               )}
             </div>

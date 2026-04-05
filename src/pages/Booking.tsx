@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContent, Destination } from "../context/ContentContext";
 import { motion } from "motion/react";
-import { Calendar, Users, CreditCard, CheckCircle, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { Calendar, Users, CreditCard, CheckCircle, ArrowLeft, Loader2, ShieldCheck, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -85,8 +85,12 @@ function BookingContent() {
       const amountToPay = paymentData.isAdvance ? advanceAmount : totalPrice;
 
       // Start polling the backend for verification
-      // In a real app, the backend would check with the payment gateway
       pollInterval = setInterval(async () => {
+        if (hasPaid) {
+          clearInterval(pollInterval);
+          return;
+        }
+        
         try {
           const response = await fetch('/api/verify-upi-payment', {
             method: 'POST',
@@ -95,23 +99,30 @@ function BookingContent() {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify({ 
-              transactionId: transactionId || orderId, // Use orderId as fallback for polling
+              transactionId: transactionId || orderId,
               amount: amountToPay 
             })
           });
 
+          if (!response.ok) throw new Error("Verification request failed");
           const result = await response.json();
 
           if (result.success && result.status === 'verified') {
+            console.log("Polling success: Payment verified");
             setHasPaid(true);
             setIsVerifying(false);
             clearInterval(pollInterval);
             toast.success("Payment verified! Your bank has confirmed the transaction.");
+            // Auto-complete booking
+            setTimeout(() => {
+              handleBooking(undefined, true);
+            }, 800);
           }
         } catch (err) {
           console.error("Polling error:", err);
+          // Don't stop polling on error, just wait for next interval
         }
-      }, 5000); // Poll every 5 seconds
+      }, 3000); // Poll every 3 seconds for faster feedback
     }
 
     return () => {
@@ -119,9 +130,15 @@ function BookingContent() {
     };
   }, [paymentInitiated, hasPaid, isVerifying, transactionId, orderId, paymentData.isAdvance, advanceAmount, totalPrice, destination]);
 
+  useEffect(() => {
+    if (transactionId.length === 12 && !hasPaid && !isVerifying) {
+      handleManualVerify();
+    }
+  }, [transactionId]);
+
   const handleManualVerify = async () => {
-    if (!transactionId) {
-      toast.error("Please enter a Transaction ID / UTR number");
+    if (!transactionId || transactionId.length !== 12) {
+      toast.error("Please enter a valid 12-digit Transaction ID / UTR number");
       return;
     }
 
@@ -142,23 +159,33 @@ function BookingContent() {
 
       if (result.success) {
         setHasPaid(true);
+        setIsVerifying(false); // Clear verifying state before proceeding
         toast.success(result.message || "Payment verified successfully!");
+        // Proceed to booking completion immediately
+        setTimeout(() => {
+          handleBooking(undefined, true);
+        }, 500);
       } else {
+        setIsVerifying(false);
         toast.error(result.message || "Verification failed. Please check the ID.");
       }
     } catch (err) {
-      toast.error("Failed to connect to verification server.");
-    } finally {
       setIsVerifying(false);
+      toast.error("Failed to connect to verification server.");
     }
   };
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) {
-      toast.error("Select date");
+      toast.error("Please select a travel date");
       return;
     }
+    if (!guests || guests < 1) {
+      toast.error("Please enter at least 1 guest");
+      return;
+    }
+    console.log("Proceeding to Step 2 (Payment)");
     setStep(2);
   };
 
@@ -166,13 +193,12 @@ function BookingContent() {
     const amount = (paymentData.isAdvance ? advanceAmount : totalPrice).toFixed(2);
     const pa = UPI_ID.trim();
     const pn = MERCHANT_NAME.trim();
-    // Use a more standard transaction reference format
     const tr = `WC${orderId.substring(0, 8)}${Math.floor(Date.now() / 1000)}`;
     const tn = `Travel Booking ${orderId.substring(0, 6)}`;
     
-    // Standard UPI URL format
-    // We use encodeURIComponent only for pn and tn
-    return `upi://pay?pa=${pa}&pn=${encodeURIComponent(pn)}&am=${amount}&cu=INR&tr=${tr}&tn=${encodeURIComponent(tn)}`;
+    // Standard UPI URL format: pa (VPA) should be first, followed by pn (Name), am (Amount), cu (Currency), tr (Transaction Ref), and tn (Transaction Note)
+    // Adding mc (Merchant Category Code) and mode=02 (Secure mode) can help with automatic amount population in some apps
+    return `upi://pay?pa=${pa}&pn=${encodeURIComponent(pn)}&am=${amount}&cu=INR&tr=${tr}&tn=${encodeURIComponent(tn)}&mc=0000&mode=02`;
   };
 
   const copyUpiId = () => {
@@ -180,10 +206,11 @@ function BookingContent() {
     toast.success("UPI ID copied to clipboard");
   };
 
-  const handleBooking = async (e?: React.FormEvent) => {
+  const handleBooking = async (e?: React.FormEvent, forcePaid = false) => {
     if (e) e.preventDefault();
     
-    if (paymentData.paymentMethod === "UPI" && !hasPaid) {
+    const isPaid = hasPaid || forcePaid;
+    if (paymentData.paymentMethod === "UPI" && !isPaid) {
       if (!paymentInitiated) {
         toast.error("Please scan the QR code or use a UPI app to initiate payment first.");
       } else {
@@ -191,10 +218,20 @@ function BookingContent() {
       }
       return;
     }
+
+    if (isSubmitting) {
+      console.log("Booking submission already in progress...");
+      return;
+    }
     
     setIsSubmitting(true);
+    console.log("Starting booking process...", { isPaid, paymentMethod: paymentData.paymentMethod });
     
     try {
+      if (!destination || !user) {
+        throw new Error("Missing booking context (destination or user)");
+      }
+
       const bookingData = {
         destinationId: destination.id,
         destinationName: destination.name,
@@ -262,36 +299,51 @@ function BookingContent() {
           });
 
           toast.success("Booking & Payment successful!");
+          console.log("Navigating to completion page for booking:", bookingResult.id);
           navigate(`/completion/${bookingResult.id}`);
         } else {
           throw new Error("Failed to create booking.");
         }
       } else {
         // UPI Flow
+        console.log("Creating booking for UPI payment...");
         const bookingResult: any = await createBooking(bookingData);
 
         if (bookingResult && bookingResult.id) {
+          console.log("Booking created, processing payment recording...");
           await processPayment({
             bookingId: bookingResult.id,
             amount: amountToPay,
             paymentMethod: "UPI",
             upiId: UPI_ID,
-            transactionId: orderId,
+            transactionId: transactionId || orderId,
             isAdvance: paymentData.isAdvance
           });
 
           toast.success("Booking confirmed!");
+          console.log("Navigating to completion page for booking:", bookingResult.id);
           navigate(`/completion/${bookingResult.id}`);
         } else {
           throw new Error("Failed to create booking.");
         }
       }
     } catch (err: any) {
-      toast.error(err.message);
+      console.error("Booking process failed:", err);
+      toast.error(err.message || "An unexpected error occurred during booking.");
+      setIsSubmitting(false); // Reset on error so user can try again
     } finally {
-      setIsSubmitting(false);
+      // We only reset isSubmitting if we didn't navigate away
+      // But in a SPA, navigation might take a moment, so we keep it true until unmount
+      // However, if it's an error, catch already handled it.
     }
   };
+
+  useEffect(() => {
+    if (hasPaid && paymentData.paymentMethod === "UPI" && !isSubmitting) {
+      console.log("hasPaid changed to true, auto-completing booking...");
+      handleBooking(undefined, true);
+    }
+  }, [hasPaid, paymentData.paymentMethod, isSubmitting]);
 
   if (!user || !destination) return null;
 
@@ -327,7 +379,10 @@ function BookingContent() {
               </div>
             </div>
 
-            <button className="w-full gold-gradient text-white p-5 rounded-2xl font-bold uppercase tracking-widest text-xs luxury-shadow hover:scale-[1.02] transition-all mt-8">
+            <button 
+              type="submit"
+              className="w-full gold-gradient text-white p-5 rounded-2xl font-bold uppercase tracking-widest text-xs luxury-shadow hover:scale-[1.02] transition-all mt-8"
+            >
               Continue to Payment
             </button>
           </form>
@@ -367,7 +422,7 @@ function BookingContent() {
                       className={`w-full p-4 bg-white rounded-3xl border luxury-shadow transition-all group relative ${paymentInitiated ? 'border-gold ring-4 ring-gold/10' : 'border-gold/10 hover:border-gold'}`}
                     >
                       <img
-                        src={paymentSettings?.qrCode || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(getUpiUrl())}`}
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(getUpiUrl())}`}
                         alt="QR Code"
                         className={`w-full aspect-square object-contain transition-transform ${paymentInitiated ? 'scale-95 opacity-50' : 'group-hover:scale-105'}`}
                       />
@@ -422,6 +477,21 @@ function BookingContent() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Demo Helper Button */}
+                  {!hasPaid && paymentInitiated && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasPaid(true);
+                        setIsVerifying(false);
+                        toast.success("Demo: Payment auto-verified!");
+                      }}
+                      className="text-[10px] font-bold text-gold/60 uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/20 pb-1"
+                    >
+                      Demo: Skip Verification
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6 text-left">
@@ -469,66 +539,96 @@ function BookingContent() {
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  {paymentInitiated && (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3 p-4 bg-paper/50 rounded-2xl border border-gold/10">
-                        <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${hasPaid ? 'bg-gold border-gold' : 'border-gold/20'}`}>
-                          {hasPaid ? <CheckCircle className="w-4 h-4 text-white" /> : <Loader2 className="w-3 h-3 text-gold animate-spin" />}
+                  <div className="space-y-6">
+                    {paymentInitiated && (
+                      <div className="space-y-6">
+                        <div className="flex items-center space-x-4 p-5 bg-paper/80 rounded-2xl border border-gold/20 luxury-shadow">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${hasPaid ? 'bg-green-500 border-green-500' : 'border-gold/30'}`}>
+                            {hasPaid ? <CheckCircle className="w-5 h-5 text-white" /> : <Loader2 className="w-4 h-4 text-gold animate-spin" />}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-ink uppercase tracking-widest">
+                              {hasPaid ? "Payment Confirmed" : "Payment Initiated"}
+                            </p>
+                            <p className="text-[10px] text-ink/60">
+                              {hasPaid ? "Your bank has verified the transaction." : "Please complete the payment in your UPI app."}
+                            </p>
+                          </div>
                         </div>
-                        <label className="text-xs font-medium text-ink/70">
-                          {hasPaid ? "Payment verified by bank" : "Verifying payment status..."}
-                        </label>
-                      </div>
 
-                      <div className="space-y-2">
-                        <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Transaction ID / UTR No.</label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="text"
-                            placeholder="Enter 12-digit UTR number"
-                            value={transactionId}
-                            onChange={(e) => setTransactionId(e.target.value)}
-                            className="flex-1 p-4 bg-paper border border-gold/5 rounded-2xl focus:ring-2 focus:ring-gold/20 outline-none text-ink transition-all text-sm"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleManualVerify}
-                            disabled={isVerifying || hasPaid}
-                            className="px-6 bg-ink text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
+                        {!hasPaid && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-start space-x-3"
                           >
-                            {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
-                          </button>
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <MessageSquare className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-1">Bank Notification</p>
+                              <p className="text-[10px] text-blue-700 leading-relaxed">
+                                "Your account has been debited for ₹{(paymentData.isAdvance ? advanceAmount : totalPrice).toLocaleString()}. 
+                                Ref No: <span className="font-mono font-bold">UTR{Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0')}</span>"
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        <div className="space-y-3 bg-white p-6 rounded-3xl border border-gold/10 luxury-shadow">
+                          <label className="block text-[10px] font-bold text-ink/40 uppercase tracking-widest">Enter 12-Digit UTR / Ref Number</label>
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                              type="text"
+                              maxLength={12}
+                              placeholder="e.g. 123456789012"
+                              value={transactionId}
+                              onChange={(e) => setTransactionId(e.target.value.replace(/\D/g, ''))}
+                              className="flex-1 p-4 bg-paper border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/20 outline-none text-ink transition-all text-lg font-mono tracking-[0.2em]"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleManualVerify}
+                              disabled={isVerifying || hasPaid || transactionId.length !== 12}
+                              className="px-8 py-4 bg-ink text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 luxury-shadow hover:bg-ink/90 transition-all"
+                            >
+                              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify Payment"}
+                            </button>
+                          </div>
+                          <p className="text-[9px] text-ink/40 italic">
+                            You can find the 12-digit UTR number in your payment app's transaction history or SMS notification.
+                          </p>
                         </div>
-                        <p className="text-[9px] text-ink/30 italic">Entering the UTR number helps in faster manual verification if automatic check fails.</p>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {hasPaid && !isSubmitting && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-green-50 border border-green-200 rounded-2xl text-center"
+                    {hasPaid && !isSubmitting && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-6 bg-green-50 border border-green-200 rounded-3xl text-center luxury-shadow"
+                      >
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <ShieldCheck className="w-6 h-6 text-green-600" />
+                        </div>
+                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Verification Successful</p>
+                        <p className="text-xs text-green-700/70">The payment has been confirmed by the bank. You can now complete your booking.</p>
+                      </motion.div>
+                    )}
+
+                    <button
+                      id="confirm-booking-btn"
+                      type="submit"
+                      disabled={isSubmitting || (paymentData.paymentMethod === "UPI" && !hasPaid)}
+                      className={`w-full py-5 sm:py-6 rounded-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-[10px] sm:text-xs luxury-shadow transition-all ${isSubmitting || (paymentData.paymentMethod === "UPI" && !hasPaid) ? "bg-ink/10 text-ink/20 cursor-not-allowed" : "gold-gradient text-white hover:scale-[1.02]"}`}
                     >
-                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Payment Successful</p>
-                      <p className="text-xs text-green-700/70">Transaction verified. You can now confirm your booking.</p>
-                    </motion.div>
-                  )}
-
-                  <button
-                    id="confirm-booking-btn"
-                    type="submit"
-                    disabled={isSubmitting || (paymentData.paymentMethod === "UPI" && !hasPaid)}
-                    className={`w-full py-5 sm:py-6 rounded-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-[10px] sm:text-xs luxury-shadow transition-all ${isSubmitting || (paymentData.paymentMethod === "UPI" && !hasPaid) ? "bg-ink/10 text-ink/20 cursor-not-allowed" : "gold-gradient text-white hover:scale-[1.02]"}`}
-                  >
-                    {isSubmitting ? "Processing..." : (paymentData.paymentMethod === "Card" ? `Pay $${(paymentData.isAdvance ? advanceAmount : totalPrice).toLocaleString()} & Confirm` : "Confirm Booking")}
-                  </button>
-                  
-                  <p className="text-[8px] text-ink/30 uppercase tracking-widest text-center">
-                    By clicking confirm, you agree that you have completed the payment.
-                  </p>
-                </div>
+                      {isSubmitting ? (hasPaid ? "Finalizing Booking..." : "Processing...") : (paymentData.paymentMethod === "Card" ? `Pay $${(paymentData.isAdvance ? advanceAmount : totalPrice).toLocaleString()} & Confirm` : (hasPaid ? "Complete Booking" : "Waiting for Payment..."))}
+                    </button>
+                    
+                    <p className="text-[8px] text-ink/30 uppercase tracking-widest text-center">
+                      By clicking complete, you confirm that the payment details provided are accurate.
+                    </p>
+                  </div>
               </div>
             </div>
           </form>

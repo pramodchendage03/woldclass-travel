@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useContent } from "../context/ContentContext";
-import { Mail, Phone, MapPin, Send, Globe, Clock } from "lucide-react";
+import { Mail, Phone, MapPin, Send, Globe, Clock, CheckCircle } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function Contact() {
   const { data } = useContent();
+  const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -16,8 +19,24 @@ export default function Contact() {
 
   if (!data) return null;
 
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+    }
+    if (!formData.message.trim()) newErrors.message = "Message is required";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    
     setLoading(true);
     try {
       const res = await fetch("/api/inquiries", {
@@ -142,17 +161,27 @@ export default function Contact() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-20"
                 >
-                  <div className="w-24 h-24 bg-gold/5 text-gold rounded-full flex items-center justify-center mx-auto mb-8 luxury-border">
-                    <Send className="h-10 w-10" />
+                  <div className="w-24 h-24 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 luxury-border border-green-100">
+                    <CheckCircle className="h-10 w-10" />
                   </div>
-                  <h2 className="text-4xl font-serif text-ink mb-6">Message Sent</h2>
-                  <p className="text-ink/40 font-light text-lg">Thank you for reaching out. One of our travel curators will contact you within 24 hours.</p>
-                  <button
-                    onClick={() => setSubmitted(false)}
-                    className="mt-12 text-gold font-bold uppercase tracking-widest text-xs hover:underline"
-                  >
-                    Send another message
-                  </button>
+                  <h2 className="text-4xl font-serif text-ink mb-6">Message Sent Successfully</h2>
+                  <p className="text-ink/40 font-light text-lg max-w-md mx-auto">
+                    Thank you for reaching out. Your message has been received, and one of our travel curators will contact you within 24 hours.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-12">
+                    <button
+                      onClick={() => navigate("/")}
+                      className="px-8 py-4 gold-gradient text-white font-bold uppercase tracking-widest text-[10px] rounded-xl luxury-shadow hover:scale-105 transition-all"
+                    >
+                      Return to Home
+                    </button>
+                    <button
+                      onClick={() => setSubmitted(false)}
+                      className="text-gold font-bold uppercase tracking-widest text-[10px] hover:underline"
+                    >
+                      Send another message
+                    </button>
+                  </div>
                 </motion.div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-12">
@@ -160,24 +189,30 @@ export default function Contact() {
                     <div className="space-y-4">
                       <label className="text-[10px] font-bold text-gold uppercase tracking-[0.2em]">Full Name</label>
                       <input
-                        required
                         type="text"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          if (errors.name) setErrors({ ...errors, name: "" });
+                        }}
                         placeholder="John Doe"
-                        className="w-full px-0 py-4 bg-transparent border-b border-gold/20 focus:border-gold outline-none text-ink font-light transition-all placeholder:text-ink/20"
+                        className={`w-full px-0 py-4 bg-transparent border-b ${errors.name ? 'border-red-500' : 'border-gold/20'} focus:border-gold outline-none text-ink font-light transition-all placeholder:text-ink/20`}
                       />
+                      {errors.name && <p className="text-red-500 text-[10px] font-bold uppercase tracking-wider">{errors.name}</p>}
                     </div>
                     <div className="space-y-4">
                       <label className="text-[10px] font-bold text-gold uppercase tracking-[0.2em]">Email Address</label>
                       <input
-                        required
                         type="email"
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, email: e.target.value });
+                          if (errors.email) setErrors({ ...errors, email: "" });
+                        }}
                         placeholder="john@example.com"
-                        className="w-full px-0 py-4 bg-transparent border-b border-gold/20 focus:border-gold outline-none text-ink font-light transition-all placeholder:text-ink/20"
+                        className={`w-full px-0 py-4 bg-transparent border-b ${errors.email ? 'border-red-500' : 'border-gold/20'} focus:border-gold outline-none text-ink font-light transition-all placeholder:text-ink/20`}
                       />
+                      {errors.email && <p className="text-red-500 text-[10px] font-bold uppercase tracking-wider">{errors.email}</p>}
                     </div>
                   </div>
 
@@ -198,13 +233,16 @@ export default function Contact() {
                   <div className="space-y-4">
                     <label className="text-[10px] font-bold text-gold uppercase tracking-[0.2em]">Your Message</label>
                     <textarea
-                      required
                       rows={6}
                       value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, message: e.target.value });
+                        if (errors.message) setErrors({ ...errors, message: "" });
+                      }}
                       placeholder="Tell us about your dream trip..."
-                      className="w-full px-0 py-4 bg-transparent border-b border-gold/20 focus:border-gold outline-none text-ink font-light transition-all resize-none placeholder:text-ink/20"
+                      className={`w-full px-0 py-4 bg-transparent border-b ${errors.message ? 'border-red-500' : 'border-gold/20'} focus:border-gold outline-none text-ink font-light transition-all resize-none placeholder:text-ink/20`}
                     />
+                    {errors.message && <p className="text-red-500 text-[10px] font-bold uppercase tracking-wider">{errors.message}</p>}
                   </div>
 
                   <button
